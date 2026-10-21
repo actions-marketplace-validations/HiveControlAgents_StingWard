@@ -14,7 +14,7 @@ jobs:
       version: ${{ steps.v.outputs.version }}
       sha: ${{ steps.v.outputs.sha }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with: { ref: "${{ github.event.workflow_run.head_sha || github.sha }}" }
       - uses: actions/setup-python@v7
         with: { python-version: "3.13" }
@@ -42,7 +42,7 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/stingward/${{ needs.check.outputs.version }}/json")
           echo "skip=$([ "$code" = 200 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - if: steps.exists.outputs.skip == 'false'
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with: { ref: "${{ needs.check.outputs.sha }}" }
       - if: steps.exists.outputs.skip == 'false'
         uses: actions/setup-python@v7
@@ -63,7 +63,7 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/stingward/${{ needs.check.outputs.version }}")
           echo "skip=$([ "$code" = 200 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - if: steps.exists.outputs.skip == 'false'
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with: { ref: "${{ needs.check.outputs.sha }}" }
       - if: steps.exists.outputs.skip == 'false'
         uses: actions/setup-node@v7
@@ -82,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with: { ref: "${{ needs.check.outputs.sha }}", fetch-depth: 0 }
       - name: Tag the version and move v0, the tag the Action examples use
         env: { V: "v${{ needs.check.outputs.version }}" }
