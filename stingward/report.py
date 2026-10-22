@@ -50,7 +50,7 @@ T = {
         "first": "Corrija primeiro", "and_more": "e mais {n}",
         "client": "Preparado para", "notes": "Parecer do analista", "review": "revisão",
         "reviewed_by": "Revisado por {name}", "reviewed": "Revisado por uma pessoa",
-        "reviewed_ai": "Revisado por IA", "notes_ai": "Resumo",
+        "reviewed_ai": "Revisado automaticamente", "notes_ai": "Resumo",
         "status": {"confirmed": "Confirmado", "false_positive": "Alarme falso", "accepted_risk": "Risco aceito",
                    "fixed": "Corrigido", "": "Não revisado"},
         "n_status": {"confirmed": ("{n} confirmado", "{n} confirmados"),
@@ -91,7 +91,7 @@ T = {
         "first": "Fix these first", "and_more": "and {n} more",
         "client": "Prepared for", "notes": "Analyst summary", "review": "review",
         "reviewed_by": "Reviewed by {name}", "reviewed": "Reviewed by a person",
-        "reviewed_ai": "Reviewed by AI", "notes_ai": "Summary",
+        "reviewed_ai": "Reviewed automatically", "notes_ai": "Summary",
         "status": {"confirmed": "Confirmed", "false_positive": "False positive", "accepted_risk": "Accepted risk",
                    "fixed": "Fixed", "": "Not reviewed"},
         "n_status": {"confirmed": ("{n} confirmed", "{n} confirmed"),
@@ -115,6 +115,23 @@ T = {
 # revisado. Alarme falso e o que foi corrigido e conferido durante a auditoria não contam. "Corrija primeiro" e as
 # faixas do plano só têm o que ainda é para fazer: confirmados e não revisados.
 STATUS_ORDER = ("confirmed", "false_positive", "accepted_risk", "fixed", "")   # ordem das contagens
+# Revisão por IA: ninguém acompanhou a correção. O que foi corrigido é o que sumiu de uma nova varredura, então é
+# "desde o relatório anterior", e não "durante a auditoria".
+T_AI = {
+    "pt": {"n_status": dict(T["pt"]["n_status"], fixed=("{n} corrigido desde o relatório anterior",
+                                                        "{n} corrigidos desde o relatório anterior")),
+           "gone": "Corrigidos desde o relatório anterior, já fora desta varredura ({n})",
+           "grade_rule": "A nota não conta alarmes falsos nem o que foi corrigido desde o relatório anterior."},
+    "en": {"n_status": dict(T["en"]["n_status"], fixed=("{n} fixed since the previous report",
+                                                        "{n} fixed since the previous report")),
+           "gone": "Fixed since the previous report, no longer in this scan ({n})",
+           "grade_rule": "The grade leaves out false positives and what was fixed since the previous report."},
+}
+
+
+def words(lang, review=None):
+    """As frases do texto e do Markdown: as da revisão por IA no lugar das outras quando o arquivo diz "ai"."""
+    return dict(T[lang], **T_AI[lang]) if review is not None and review.kind == "ai" else T[lang]
 _GROUP = {"": 0, "confirmed": 0, "accepted_risk": 1, "fixed": 2, "false_positive": 3}  # ordem dos itens
 TODO = ("", "confirmed")
 NOT_COUNTED = ("false_positive", "fixed")
@@ -131,7 +148,7 @@ def review_parts(findings, review, lang):
     """["14 confirmados", "2 alarmes falsos descartados"]: só os status que aparecem."""
     from .review import counts
     c = counts(findings, review)
-    forms = T[lang]["n_status"]
+    forms = words(lang, review)["n_status"]
     return [(forms[k][0] if c[k] == 1 else forms[k][1]).format(n=c[k]) for k in STATUS_ORDER if c[k]]
 
 
@@ -509,6 +526,8 @@ IMPACT = {
                "A hidden instruction in any page, file or message the model reads makes this tool {impact}."),
     "DEP004": ("Sem lockfile, uma instalação pode ficar com {pkg} {floor}, que tem falhas públicas com ataque pronto. Subir o mínimo da faixa fecha essa porta.{exploit}",
                "Without a lockfile, an install can stay on {pkg} {floor}, which has public flaws with ready-made attacks. Raising the range's minimum closes that door.{exploit}"),
+    "DEP005": ("Uma falha do próprio PHP atinge o site inteiro, e a falha pública já tem ataque pronto: quem ataca não precisa descobrir nada sobre o seu código.{exploit}",
+               "A flaw in PHP itself reaches the whole site, and a public one already has a ready-made attack: an attacker needs to know nothing about your code.{exploit}"),
 }
 
 
@@ -545,8 +564,8 @@ def _notes_label(audit, t):
 
 
 def text(ctx, findings, lang="pt", color=False, target=None, show_verdict=False, max_low=15, audit=None):
-    t = T[lang]
     rv = audit.review if audit else None
+    t = words(lang, rv)
     valid = counted(findings, rv)
     shown, discarded = split(merge(findings, lang, rv))
     empty = nothing_read(ctx, findings)
@@ -663,8 +682,8 @@ def _md_comment(audit, e, lang):
 
 
 def markdown(ctx, findings, lang="pt", target=None, show_verdict=False, audit=None):
-    t = T[lang]
     rv = audit.review if audit else None
+    t = words(lang, rv)
     valid = counted(findings, rv)
     g = grade(valid)
     shown, discarded = split(merge(findings, lang, rv))
@@ -769,6 +788,7 @@ RULE_NAME = {
     "DEP002": ("Pacote malicioso", "Malicious package"),
     "DEP003": ("Manifesto sem lockfile", "Manifest without a lockfile"),
     "DEP004": ("Faixa de versão aceita versões com falhas", "Version range allows vulnerable versions"),
+    "DEP005": ("Versão do PHP com falhas conhecidas", "PHP version with known vulnerabilities"),
     "SEC001": ("Segredo no código", "Secret in code"),
     "SEC002": (".env no git", ".env committed to git"),
     "SEC003": (".env fora do .gitignore", ".env missing from .gitignore"),

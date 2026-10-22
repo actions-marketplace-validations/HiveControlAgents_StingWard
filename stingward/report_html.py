@@ -90,7 +90,7 @@ H = {
         "ev_long": "linha longa ({n} caracteres), não exibida",
         "ev_more": ("Trecho do outro lugar omitido.", "Trechos dos outros {n} lugares omitidos."),
         "hidden": ("{n} caractere invisível", "{n} caracteres invisíveis"),
-        "vulns": "Falhas conhecidas nesta versão", "vulns_floor": "Falhas conhecidas na menor versão aceita", "v_id": "ID", "v_sev": "Severidade", "v_summary": "Resumo", "v_fixed": "Corrigida em",
+        "vulns": "Falhas conhecidas nesta versão", "vulns_floor": "Falhas conhecidas na menor versão aceita", "vulns_branch": "Falhas conhecidas nesta série", "v_id": "ID", "v_sev": "Severidade", "v_summary": "Resumo", "v_fixed": "Corrigida em",
         "v_more": ("e mais {n} falha", "e mais {n} falhas"), "v_none": "sem correção",
         "no_findings": "Nenhum achado.",
         "scope_what": "O que foi verificado",
@@ -103,6 +103,7 @@ H = {
         "check_name": {"deps": "dependências", "secrets": "segredos", "app": "erros comuns de apps feitos com IA", "code": "falhas no código (injeção, XSS, SSRF e outras)", "agents": "agentes, MCP e skills"},
         "ignore": ("O projeto tem {n} regra no .stingwardignore, que esconde alguns achados de propósito. Confira se ela ainda faz sentido.",
                    "O projeto tem {n} regras no .stingwardignore, que escondem alguns achados de propósito. Confira se elas ainda fazem sentido."),
+        "ignore_off": "O projeto pede para esconder alguns achados (no .stingwardignore ou em comentários stingward:ignore), mas esta verificação não aceitou esses pedidos: todos os achados estão no relatório.",
         "sources_h": "Bases consultadas", "src_col": "Base", "src_role": "Para quê", "src_status": "Situação",
         "src": {"osv": ("OSV.dev", "falhas conhecidas e pacotes maliciosos"),
                 "kev": ("CISA KEV", "falhas que atacantes estão explorando agora"),
@@ -210,7 +211,7 @@ H = {
         "ev_long": "long line ({n} characters), not shown",
         "ev_more": ("Excerpt for the other place left out.", "Excerpts for the other {n} places left out."),
         "hidden": ("{n} invisible character", "{n} invisible characters"),
-        "vulns": "Known vulnerabilities in this version", "vulns_floor": "Known vulnerabilities in the lowest version allowed", "v_id": "ID", "v_sev": "Severity", "v_summary": "Summary", "v_fixed": "Fixed in",
+        "vulns": "Known vulnerabilities in this version", "vulns_floor": "Known vulnerabilities in the lowest version allowed", "vulns_branch": "Known vulnerabilities in this branch", "v_id": "ID", "v_sev": "Severity", "v_summary": "Summary", "v_fixed": "Fixed in",
         "v_more": ("and {n} more", "and {n} more"), "v_none": "no fix yet",
         "no_findings": "No findings.",
         "scope_what": "What was checked",
@@ -223,6 +224,7 @@ H = {
         "check_name": {"deps": "dependencies", "secrets": "secrets", "app": "common AI-built app mistakes", "code": "code flaws (injection, XSS, SSRF and more)", "agents": "agents, MCP and skills"},
         "ignore": ("The project has {n} rule in .stingwardignore that hides some findings on purpose. Check that it still makes sense.",
                    "The project has {n} rules in .stingwardignore that hide some findings on purpose. Check that they still make sense."),
+        "ignore_off": "The project asks to hide some findings (in .stingwardignore or in stingward:ignore comments), but this check did not apply those requests: every finding is in the report.",
         "sources_h": "Sources consulted", "src_col": "Source", "src_role": "Used for", "src_status": "Status",
         "src": {"osv": ("OSV.dev", "known vulnerabilities and malicious packages"),
                 "kev": ("CISA KEV", "vulnerabilities attackers are exploiting now"),
@@ -275,43 +277,46 @@ H = {
     },
 }
 # Revisão por IA ("review_kind": "ai" no arquivo de revisão): só as frases que mudam. A IA confirma ou descarta; risco
-# aceito não existe nela, e o que foi corrigido vem da nova varredura.
+# aceito não existe nela, e o que foi corrigido vem da nova varredura. O relatório chama de revisão automática; quem
+# recebe os trechos (o modelo de IA) é dito na política de privacidade de quem entrega o relatório.
 H_AI = {
     "pt": {
-        "review_meta": "Revisão por IA", "reviewer_none": "uma IA", "notes_h": "Resumo",
-        "grade_rule": "Depois da revisão por IA, os alarmes falsos e o que foi corrigido não contam.",
-        "review_line": "Revisão por IA: {counts}.",
-        "appendix_intro": "A revisão por IA leu o código destes achados e concluiu que não são problema neste projeto, com o motivo junto de cada um. Eles não contam para a nota, para o plano nem para o que corrigir primeiro. Ficam aqui para você ver o que foi descartado e por quê.",
-        "human_h": "Revisão por IA",
-        "human_intro": "Depois da varredura automática, {who} leu o código de cada achado e marcou cada um como confirmado ou alarme falso. Na dúvida, o achado ficou confirmado. O comentário da revisão aparece junto de cada achado.",
+        "review_meta": "Revisão automática", "reviewer_none": "a revisão automática", "notes_h": "Resumo",
+        "grade_rule": "Depois da revisão automática, os alarmes falsos e o que foi corrigido não contam.",
+        "clean_reviewed": "Depois da revisão automática, nenhum achado continua valendo: eram alarmes falsos ou foram corrigidos desde o relatório anterior. Isso não prova que está seguro.",
+        "review_line": "Revisão automática: {counts}.",
+        "appendix_intro": "A revisão automática leu o código destes achados e concluiu que não são problema neste projeto, com o motivo junto de cada um. Eles não contam para a nota, para o plano nem para o que corrigir primeiro. Ficam aqui para você ver o que foi descartado e por quê.",
+        "human_h": "Revisão automática",
+        "human_intro": "Depois da varredura, {who} leu o código de cada achado e marcou cada um como confirmado ou alarme falso. Na dúvida, o achado ficou confirmado. O comentário da revisão aparece junto de cada achado.",
         "human_rules": ["Contam para a nota os achados confirmados e os que ainda não foram revisados.",
                         "Alarmes falsos não contam: saem da nota, do plano e da lista do que corrigir primeiro e ficam no apêndice, com o motivo.",
                         "O que foi corrigido e sumiu de uma nova varredura não conta para a nota, mas continua no relatório, marcado como corrigido."],
-        "method_review": "Uma IA leu o código de cada achado e marcou o resultado: confirmado ou alarme falso.",
-        "privacy": "Para essas bases saíram só nomes e versões de pacotes. Para a revisão por IA, o trecho de cada achado, com os segredos mascarados, foi enviado ao modelo de IA.",
-        "limits_review": ["Conferimos o código e a configuração dos arquivos listados acima, nesta data, com as regras do Stingward, e uma IA revisou cada achado. Não é um teste de invasão: ninguém tentou entrar no app rodando.",
+        "method_review": "A revisão automática leu o código de cada achado e marcou o resultado: confirmado ou alarme falso.",
+        "privacy": "Para essas bases saíram só nomes e versões de pacotes. Para a revisão automática, o trecho de cada achado, com os segredos mascarados, foi enviado ao serviço de revisão.",
+        "limits_review": ["Conferimos o código e a configuração dos arquivos listados acima, nesta data, com as regras do Stingward, e uma revisão automática conferiu cada achado. Não é um teste de invasão: ninguém tentou entrar no app rodando.",
                           "Ficam de fora o app em funcionamento, as regras de negócio, as configurações do servidor e da nuvem e tudo o que não está nestes arquivos.",
                           "Um relatório limpo quer dizer que nenhum dos problemas comuns que o Stingward conhece apareceu nestes arquivos nesta data.",
                           "Falhas novas são publicadas todo dia: uma dependência boa hoje pode ter falha amanhã. Verifique de novo depois de mudar o app.",
-                          "A revisão por IA tira a maior parte dos alarmes falsos, mas pode errar. Na dúvida, o achado ficou confirmado. Se algo não bater com o que você sabe do app, confira no código antes de mexer."],
+                          "A revisão automática tira a maior parte dos alarmes falsos, mas pode errar. Na dúvida, o achado ficou confirmado. Se algo não bater com o que você sabe do app, confira no código antes de mexer."],
     },
     "en": {
-        "review_meta": "AI review", "reviewer_none": "an AI", "notes_h": "Summary",
-        "grade_rule": "After the AI review, false positives and what was fixed do not count.",
-        "review_line": "AI review: {counts}.",
-        "appendix_intro": "The AI review read the code of these findings and concluded they are not a problem in this project, with the reason next to each one. They do not count toward the grade, the plan or what to fix first. They are listed so you can see what was discarded and why.",
-        "human_h": "AI review",
-        "human_intro": "After the automated scan, {who} read the code of each finding and marked each one as confirmed or false positive. When in doubt, the finding stayed confirmed. The review's comment appears next to each finding.",
+        "review_meta": "Automatic review", "reviewer_none": "the automatic review", "notes_h": "Summary",
+        "grade_rule": "After the automatic review, false positives and what was fixed do not count.",
+        "clean_reviewed": "After the automatic review, no finding still stands: they were false positives or were fixed since the previous report. That does not prove it is safe.",
+        "review_line": "Automatic review: {counts}.",
+        "appendix_intro": "The automatic review read the code of these findings and concluded they are not a problem in this project, with the reason next to each one. They do not count toward the grade, the plan or what to fix first. They are listed so you can see what was discarded and why.",
+        "human_h": "Automatic review",
+        "human_intro": "After the scan, {who} read the code of each finding and marked each one as confirmed or false positive. When in doubt, the finding stayed confirmed. The review's comment appears next to each finding.",
         "human_rules": ["Confirmed findings and findings not reviewed yet count toward the grade.",
                         "False positives do not count: they leave the grade, the plan and the fix-first list, and move to the appendix with the reason.",
                         "What was fixed and is gone from a new scan does not count toward the grade, but stays in the report, marked as fixed."],
-        "method_review": "An AI read the code of each finding and marked the outcome: confirmed or false positive.",
-        "privacy": "Only package names and versions went to these services. For the AI review, the code excerpt of each finding, with secrets masked, was sent to the AI model.",
-        "limits_review": ["We checked the code and configuration of the files listed above, on this date, with Stingward's rules, and an AI reviewed every finding. This is not a penetration test: nobody tried to break into the running app.",
+        "method_review": "The automatic review read the code of each finding and marked the outcome: confirmed or false positive.",
+        "privacy": "Only package names and versions went to these services. For the automatic review, the code excerpt of each finding, with secrets masked, was sent to the review service.",
+        "limits_review": ["We checked the code and configuration of the files listed above, on this date, with Stingward's rules, and an automatic review went over every finding. This is not a penetration test: nobody tried to break into the running app.",
                           "Out of scope: the running app, business logic, server and cloud settings, and anything that is not in these files.",
                           "A clean report means none of the common problems Stingward knows showed up in these files on this date.",
                           "New vulnerabilities are published every day: a dependency that is fine today can have a flaw tomorrow. Check again after you change the app.",
-                          "The AI review removes most false alarms, but it can be wrong. When in doubt, the finding stayed confirmed. If something does not match what you know about the app, check the code before you change it."],
+                          "The automatic review removes most false alarms, but it can be wrong. When in doubt, the finding stayed confirmed. If something does not match what you know about the app, check the code before you change it."],
     },
 }
 
@@ -764,7 +769,7 @@ def _evidence_html(ctx, entry, t):
 
 
 def _vulns_html(entry, t):
-    vulns = entry.params.get("vulns") if entry.rule in ("DEP001", "DEP004") else None
+    vulns = entry.params.get("vulns") if entry.rule in ("DEP001", "DEP004", "DEP005") else None
     if not isinstance(vulns, list) or not vulns:
         return ""
     rows = []
@@ -782,7 +787,7 @@ def _vulns_html(entry, t):
         rows.append(f'<tr><td class="vid">{ident}</td><td class="vsev">{_badge(sev, t)}</td><td class="vsum">{_h(v.get("summary") or "")}{tags}</td>'
                     f'<td class="vfix">{_h(v.get("fixed") or t["v_none"])}</td></tr>')
     more = (f'<p class="ev-more">{_html.escape(_n(t, "v_more", len(vulns) - MAX_VULNS))}</p>' if len(vulns) > MAX_VULNS else "")
-    head = t["vulns_floor"] if entry.rule == "DEP004" else t["vulns"]
+    head = t["vulns_floor"] if entry.rule == "DEP004" else t["vulns_branch"] if entry.params.get("floating") else t["vulns"]
     return (f'<h5>{_html.escape(head)}</h5><table class="vulns"><thead><tr><th scope="col">{t["v_id"]}</th>'
             f'<th scope="col">{_html.escape(t["v_sev"])}</th><th scope="col">{_html.escape(t["v_summary"])}</th>'
             f'<th scope="col">{_html.escape(t["v_fixed"])}</th></tr></thead><tbody>{"".join(rows)}</tbody></table>{more}')
@@ -943,7 +948,12 @@ def _scope(ctx, lang, t, checks, audit=None, findings=()):
             f'{t["checks"]}: {_checks(checks, t)}', t["rules"].format(n=len(RULES))]
     items = "".join(f"<li>{_html.escape(w)}</li>" for w in what)
     ignored = len(scan.load_ignore(ctx.root)) if ctx.mode == "project" else 0
-    ign = f'<p class="warn">{_html.escape(_n(t, "ignore", ignored))}</p>' if ignored else ""
+    if not ctx.honor_ignores:
+        # --no-ignore: nada foi escondido. Só vale dizer isso quando o projeto pediu para esconder algo.
+        asked = ignored or any("stingward:ignore" in ctx.read(rel) for rel in ctx.files)
+        ign = f'<p>{_html.escape(t["ignore_off"])}</p>' if asked else ""
+    else:
+        ign = f'<p class="warn">{_html.escape(_n(t, "ignore", ignored))}</p>' if ignored else ""
     steps = list(t["method"])
     if reviewed:
         steps[-1:] = [t["method_review"], t["method_grade_review"]]

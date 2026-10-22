@@ -2,9 +2,12 @@
 
 Every report and number on the page comes from this checkout: the script runs Stingward on the README
 demos and on its own skill, reads the rules and counts the tests, so the site cannot drift from the code.
-The sample report (example/ and pt/exemplo/) is the real HTML report of the demo app, with a note on top.
+The sample report (example/ and pt/exemplo/) is the real HTML report of the demo app, with a note on top. The
+sample of the paid report (example/full/ and pt/exemplo/completo/) is the same report with the AI review kept in
+site/sample/: a comment on every finding and the summary on top, applied with --review and --notes.
 The addresses the site had before English moved to the root (en/, en/example/ and exemplo/) are small pages
-that send the visitor on to the new ones.
+that send the visitor on to the new ones. The terms, privacy and refund pages of the paid report (terms/, privacy/ and
+refund/, and the same under pt/) come from site/legal.json; the report service links to them at these addresses.
 
     python site/build.py _site            # offline reports, as the tests build it
     python site/build.py _site --online   # with dependency results from OSV.dev, as the Pages workflow builds it
@@ -29,19 +32,22 @@ import unittest
 
 SITE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(SITE)
-URL = "https://hivecontrolagents.github.io/StingWard/"
+URL = "https://stingward.com/"
 REPO = "https://github.com/HiveControlAgents/StingWard"
-ASSETS = ["logo.svg", "social-preview.png"] + [f"demo-{d}-{lang}.{ext}" for d in ("app", "skill") for lang in ("pt", "en") for ext in ("mp4", "png")]
+ASSETS = ["logo.svg", "social-preview.png", "flag-br.svg", "flag-us.svg"] + [f"demo-{d}-{lang}.{ext}" for d in ("app", "skill") for lang in ("pt", "en") for ext in ("mp4", "png")]
 CACHE = os.path.join(tempfile.gettempdir(), "stingward-site-cache")
 SEVERITY = {"🔴": "crit", "🟠": "high", "🟡": "med", "🔵": "low", "⚪": "info", "🟢": "ok"}
 ROW = r"^   [^ :]+(?: [^ :]+){0,2}: "  # "   where: ...", "   how to fix: ..." under a finding
 PAGE_DIR = {"en": ".", "pt": "pt"}  # English is the main site; Portuguese has its own folder
 SAMPLE = {"en": "example", "pt": "pt/exemplo"}  # where each language's sample report is published
+SAMPLE_AI = {"en": "example/full", "pt": "pt/exemplo/completo"}  # and the paid one, with the AI review
 HREFLANG = {"en": "en", "pt": "pt-BR"}
 # The addresses the site had before English moved to the root, already shared, as old folder: (language, new folder).
 # Pages cannot redirect, so each old folder gets a page that sends the visitor on (see moved()).
 MOVED = {"en": ("en", "."), "en/example": ("en", "example"), "exemplo": ("pt", "pt/exemplo")}
 LINKS = ("audit_checkout", "team_waitlist")
+LEGAL = ("terms", "privacy", "refund")  # folder names in each language's folder; the report service links to them
+SUPPORT = "support@stingward.com"
 HTTPS = re.compile(r"https://[^\s\"'<>\\]+")
 
 sys.path.insert(0, ROOT)
@@ -171,10 +177,11 @@ def links(text):
     return {key: given.get(key, "") for key in LINKS}
 
 
-def offer(url, label, soon, cls="button"):
-    """A buy or sign-up button. Until its address exists it is a plain label, so nothing on the page takes payment."""
+def offer(url, label, soon, cls="button", buy=False):
+    """A buy or sign-up button. Until its address exists it is a plain label, so nothing on the page takes payment.
+    buy: the button to the buy page, which app.js gives the label of the ad the visitor came from."""
     if url:
-        return f'<a class="{cls}" href="{e(url)}">{e(label)}</a>'
+        return f'<a class="{cls}" href="{e(url)}"{" data-buy" if buy else ""}>{e(label)}</a>'
     return f'<span class="{cls} button--soon" role="link" aria-disabled="true">{e(soon)}</span>'
 
 
@@ -187,6 +194,26 @@ def link_to(target, here):
 def address(folder):
     """The published address of a folder given from the site root."""
     return URL if folder == "." else URL + folder + "/"
+
+
+def legal_folders(key):
+    """Where a legal page is published in each language, given from the site root ("terms", "pt/terms")."""
+    return {lang: posixpath.normpath(posixpath.join(folder, key)) for lang, folder in PAGE_DIR.items()}
+
+
+def languages(lang, folders):
+    """The language switch of a page published in both languages; the page you are on is marked, not linked.
+    Portuguese comes first: the site is English by default, so the switch leads with the other language."""
+    links, root = [], "" if folders[lang] == "." else link_to(".", folders[lang])
+    for key, name, short, flag in (("pt", "Português", "PT", "br"), ("en", "English", "EN", "us")):
+        code = HREFLANG[key]
+        label = (f'<img class="lang__flag" src="{root}assets/flag-{flag}.svg" alt="" width="16" height="12">'
+                 f'<span class="lang__long">{name}</span><span class="lang__short" aria-hidden="true">{short}</span>')
+        if key == lang:
+            links.append(f'<span lang="{code}" aria-current="page">{label}</span>')
+        else:
+            links.append(f'<a href="{link_to(folders[key], folders[lang])}" hreflang="{code}" lang="{code}">{label}</a>')
+    return "".join(links)
 
 
 def alternates(folders):
@@ -284,6 +311,7 @@ class Page:
         self.urls = urls or dict.fromkeys(LINKS, "")
         self.root = "" if PAGE_DIR[lang] == "." else link_to(".", PAGE_DIR[lang])
         self.sample_href = link_to(SAMPLE[lang], PAGE_DIR[lang])
+        self.sample_ai_href = link_to(SAMPLE_AI[lang], PAGE_DIR[lang])
 
     def app_grade(self):
         return json.loads(cli(["./my-saas"], self.demo, self.lang, "json", self.online))["grade"]
@@ -295,15 +323,7 @@ class Page:
         return "".join(f'<a class="nav__link" href="{href}">{e(name)}</a>' for href, name in zip(targets, self.t["tabs"]))
 
     def languages(self):
-        links = []
-        for key, name, short in (("en", "English", "EN"), ("pt", "Português", "PT")):
-            code = HREFLANG[key]
-            label = f'<span class="lang__long">{name}</span><span class="lang__short" aria-hidden="true">{short}</span>'
-            if key == self.lang:  # the page you are on is marked, not linked
-                links.append(f'<span lang="{code}" aria-current="page">{label}</span>')
-            else:
-                links.append(f'<a href="{link_to(PAGE_DIR[key], PAGE_DIR[self.lang])}" hreflang="{code}" lang="{code}">{label}</a>')
-        return "".join(links)
+        return languages(self.lang, PAGE_DIR)
 
     # ---------------------------------------------------------------- the three real reports, in the terminal
 
@@ -480,27 +500,42 @@ class Page:
 
     def offers(self):
         t, urls = self.t, self.urls
-        return {"audit_button": offer(urls["audit_checkout"], t["audit_buy"], t["soon"]),
+        return {"audit_button": offer(urls["audit_checkout"], t["audit_buy"], t["soon"], buy=True),
                 "soon_button": offer(urls["team_waitlist"], t["soon_button"], t["soon"]),
                 "audit_gets": "\n".join(f"<li>{e(x)}</li>" for x in t["audit_gets"]),
                 "audit_not": "\n".join(f"<li>{e(x)}</li>" for x in t["audit_not"])}
 
-    def sample(self):
-        """The real HTML report of the demo app, as Stingward writes it, with a note on top that says what it is."""
-        t, lang, here = self.t, self.lang, SAMPLE[self.lang]
-        other = "en" if lang == "pt" else "pt"
-        report = cli(["./my-saas"], self.demo, lang, "html", self.online)
+    def sample(self, ai=False):
+        """The real HTML report of the demo app, as Stingward writes it, with a note on top that says what it is.
+        ai: with the AI review of site/sample/, run with --no-ignore as the report service runs it."""
+        t, lang = self.t, self.lang
+        folders, twin = (SAMPLE_AI, SAMPLE) if ai else (SAMPLE, SAMPLE_AI)
+        here, other = folders[lang], "en" if lang == "pt" else "pt"
+        args = ["./my-saas"]
+        if ai:
+            review, shown = os.path.join(SITE, "sample", f"review-{lang}.json"), f"site/sample/review-{lang}.json"
+            args += ["--no-ignore", "--review", review, "--notes", os.path.join(SITE, "sample", f"notes-{lang}.md")]
+            got = json.loads(cli(args, self.demo, lang, "json", self.online))["review"]
+            if got["counts"].get("unreviewed"):  # a finding the review file does not have would read "not reviewed yet"
+                raise SystemExit(f"site: {shown} has no comment for "
+                                 f"{got['counts']['unreviewed']} finding(s) of the demo app")
+            if got["masked"]:
+                raise SystemExit(f"site: something in {shown} or its notes looks like a secret")
+        report = cli(args, self.demo, lang, "html", self.online)
+        title, text, see = ((t["sample_ai_title"], t["sample_ai_text"], t["sample_plain"]) if ai else
+                            (t["sample_title"], t["sample_text"], t["sample_with_ai"]))
         note = (f'<aside class="sample" aria-label="{e(t["sample_label"])}"><div class="sample-in">'
-                f'<p><strong>{e(t["sample_title"])}</strong> {e(fill(t["sample_text"]))}</p><p class="sample-links">'
+                f'<p><strong>{e(title)}</strong> {e(fill(text))}</p><p class="sample-links">'
                 f'<a href="{link_to(PAGE_DIR[lang], here)}">{e(t["sample_home"])}</a>'
                 f'<a href="{link_to(PAGE_DIR[lang], here)}#audit">{e(t["sample_audit"])}</a>'
-                f'<a href="{link_to(SAMPLE[other], here)}" hreflang="{HREFLANG[other]}" '
+                f'<a href="{link_to(twin[lang], here)}">{e(see)}</a>'
+                f'<a href="{link_to(folders[other], here)}" hreflang="{HREFLANG[other]}" '
                 f'lang="{HREFLANG[other]}">{e(t["sample_other"])}</a></p></div></aside>')
         head, sep, body = report.partition("</head>")
         if not sep or head.count("</style>") != 1 or not head.endswith("</style>\n") or not body.startswith("\n<body>\n"):
             raise SystemExit("site: the HTML report changed shape; update Page.sample")
         # its address and its other language; these links load nothing, so the report's policy stays as it is
-        links = f'<link rel="canonical" href="{address(here)}">\n{alternates(SAMPLE)}\n'
+        links = f'<link rel="canonical" href="{address(here)}">\n{alternates(folders)}\n'
         return (head.replace("</style>", SAMPLE_CSS + "</style>") + links + sep
                 + body.replace("<body>\n", "<body>\n" + note + "\n", 1))
 
@@ -522,12 +557,126 @@ class Page:
             "proof_items": self.proof(), "faq_items": self.faq(), "find_rows": self.finds(),
             "price_lines": "\n".join(f"<li>{e(fill(x))}</li>" for x in t["price_lines"]),
             "cta_copy": copy_button(t, t["cta_cmd"], "button cta__copy"),
-            "footer_cols": self.footer_cols(), "sample_href": self.sample_href, "csp": CSP_SLOT,
+            "footer_cols": self.footer_cols(), "sample_href": self.sample_href, "sample_ai_href": self.sample_ai_href,
+            "csp": CSP_SLOT,
+            "legal_label": e(legal_texts()[self.lang]["label"]),
+            # the price in another currency, where the language's own one is not what everyone pays (empty: no line)
+            "audit_note": f'<p class="audit__note" data-reveal>{e(t["audit_note"])}</p>' if t["audit_note"] else "",
+            "legal_links": legal_nav(legal_texts()[self.lang], self.lang, PAGE_DIR[self.lang]),
         })
         values.update(self.stages())
         values.update(self.offers())
         with open(os.path.join(SITE, "page.html"), encoding="utf-8") as fh:
             return with_policy(string.Template(fh.read()).substitute(values))
+
+
+# ---------------------------------------------------------------- terms, privacy and refunds
+
+# The legal pages load the site's stylesheet, font and logo, and no script at all.
+LEGAL_CSP = "default-src 'none'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'"
+LEGAL_PAGE = """<!doctype html>
+<html lang="{lang}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="{csp}">
+<title>{title} · Stingward</title>
+<meta name="description" content="{description}">
+<link rel="canonical" href="{url}">
+{alternates}
+<meta name="theme-color" content="#0e1013">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="{root}assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="{root}style.css">
+</head>
+<body>
+<a class="skip" href="#main">{skip}</a>
+<header class="top">
+  <a class="brand" href="{home}" aria-label="Stingward"><img src="{root}assets/logo.svg" alt="" width="26" height="26"><span>Stingward</span></a>
+  <nav class="lang" aria-label="{lang_label}">{languages}</nav>
+</header>
+<main class="legal" id="main">
+<h1 class="head">{title}</h1>
+<p class="legal__lead">{intro}</p>
+{sections}
+<p class="legal__date">{updated}</p>
+</main>
+<footer class="footer footer--legal">
+  <div class="footer__last">
+    <p>{copy}</p>
+    <nav class="footer__legal" aria-label="{legal_label}">{legal_links}</nav>
+    <a href="{home}">{home_label}</a>
+  </div>
+</footer>
+</body>
+</html>
+"""
+INLINE_LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
+
+
+@functools.lru_cache(maxsize=None)
+def legal_texts():
+    with open(os.path.join(SITE, "legal.json"), encoding="utf-8") as fh:
+        words = json.load(fh)
+    for lang in PAGE_DIR:
+        if sorted(words[lang]["pages"]) != sorted(LEGAL):
+            raise SystemExit(f"site/legal.json: {lang} must have exactly the pages {', '.join(LEGAL)}")
+    return words
+
+
+def legal_nav(words, lang, here, current=None):
+    """Links to the three legal pages, from the folder `here`; the one you are on is marked, not linked."""
+    out = []
+    for key in LEGAL:
+        name = e(words["pages"][key]["name"])
+        if key == current:
+            out.append(f'<span aria-current="page">{name}</span>')
+        else:
+            out.append(f'<a href="{link_to(legal_folders(key)[lang], here)}">{name}</a>')
+    return "".join(out)
+
+
+def _plain(text):
+    if "](" in text:
+        raise SystemExit(f"site/legal.json: a link is not written as [words](target): {text!r}")
+    return e(text).replace(SUPPORT, f'<a href="mailto:{SUPPORT}">{SUPPORT}</a>')
+
+
+def inline(text, lang, here):
+    """A sentence of legal.json as HTML: escaped, the support address as a mail link, and [words](target) as a link
+    to another legal page (terms, privacy, refund) or to an https:// address. Any other target stops the build."""
+    out, last = [], 0
+    for m in INLINE_LINK.finditer(text):
+        words, target = m.groups()
+        if target in LEGAL:
+            href = link_to(legal_folders(target)[lang], here)
+        elif HTTPS.fullmatch(target):
+            href = target
+        else:
+            raise SystemExit(f"site/legal.json: {target!r} is not terms, privacy, refund or an https:// address")
+        out += [_plain(text[last:m.start()]), f'<a href="{e(href)}">{_plain(words)}</a>']
+        last = m.end()
+    return "".join(out) + _plain(text[last:])
+
+
+def blocks(items, lang, here):
+    """A section's body: a string is a paragraph, a list of strings is a list."""
+    return "\n".join("<ul>" + "".join(f"<li>{inline(x, lang, here)}</li>" for x in item) + "</ul>" if isinstance(item, list)
+                     else f"<p>{inline(item, lang, here)}</p>" for item in items)
+
+
+def legal(t, words, lang, key):
+    """The terms, privacy or refund page in one language. t is the language's text.json, words its legal.json."""
+    folders = legal_folders(key)
+    here, doc = folders[lang], words["pages"][key]
+    sections = "\n".join(f"<section>\n<h2>{e(head)}</h2>\n{blocks(items, lang, here)}\n</section>"
+                         for head, items in doc["sections"])
+    return LEGAL_PAGE.format(
+        lang=HREFLANG[lang], csp=LEGAL_CSP, title=e(doc["title"]), description=e(doc["description"]), url=address(here),
+        alternates=alternates(folders), root=link_to(".", here), skip=e(t["skip"]), home=link_to(PAGE_DIR[lang], here),
+        lang_label=e(t["lang_label"]), languages=languages(lang, folders), intro=inline(doc["intro"], lang, here),
+        sections=sections, updated=e(words["updated"]), copy=e(words["copy"]), legal_label=e(words["label"]),
+        legal_links=legal_nav(words, lang, here, key), home_label=e(words["home"]))
 
 
 def build(out, online=False):
@@ -542,11 +691,19 @@ def build(out, online=False):
             page = Page(lang, text[lang], demo, online, tests, urls)
             files[posixpath.normpath(posixpath.join(PAGE_DIR[lang], "index.html"))] = page.render()
             files[posixpath.join(SAMPLE[lang], "index.html")] = page.sample()
+            files[posixpath.join(SAMPLE_AI[lang], "index.html")] = page.sample(ai=True)
     for old, (lang, new) in MOVED.items():
         rel_path = posixpath.join(old, "index.html")
         if rel_path in files:
             raise SystemExit(f"site: {old}/ is both a page and an old address")
         files[rel_path] = moved(text[lang], lang, old, new)
+    words = legal_texts()
+    for lang in PAGE_DIR:
+        for key in LEGAL:
+            rel_path = posixpath.join(legal_folders(key)[lang], "index.html")
+            if rel_path in files:
+                raise SystemExit(f"site: {key}/ is published twice")
+            files[rel_path] = legal(text[lang], words[lang], lang, key)
     if os.path.isdir(out):
         shutil.rmtree(out)
     for rel_path, content in files.items():

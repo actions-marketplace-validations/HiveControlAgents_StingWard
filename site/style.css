@@ -118,9 +118,13 @@ mark { background: none; color: inherit; }
 .nav__link, .lang a, .lang span { text-decoration: none; transition: color 160ms ease; }
 .lang { display: flex; gap: 14px; }
 .lang a { color: var(--muted); }
+.lang > a, .lang > span { display: inline-flex; align-items: center; gap: 7px; }
+.lang__flag { width: 16px; height: 12px; border-radius: 2px; box-shadow: 0 0 0 1px rgb(255 255 255 / 0.14); }
+.lang a .lang__flag { opacity: 0.7; transition: opacity 160ms ease; }
 .lang [aria-current] { color: var(--ink); font-weight: 500; }
 @media (hover: hover) and (pointer: fine) {
   .nav__link:hover, .lang a:hover { color: var(--accent); }
+  .lang a:hover .lang__flag { opacity: 1; }
 }
 
 /* ---------------------------------------------------------------- first screen: the claim, and the reports on the stage */
@@ -369,7 +373,7 @@ mark { background: none; color: inherit; }
 /* ---------------------------------------------------------------- check its work: large names on tiles */
 
 .proof {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 8px;
   margin-top: var(--section); padding: 0 var(--margin);
 }
 .proof__head {
@@ -377,14 +381,14 @@ mark { background: none; color: inherit; }
   padding: clamp(24px, 2.6vw, 40px); background: var(--ink); color: var(--bg);
 }
 .proof__head p { max-width: 34ch; font-size: var(--step-lead); line-height: 1.35; text-wrap: pretty; }
-.proof__tiles { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.proof__tiles { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .tile {
   display: flex; flex-direction: column; justify-content: flex-end; gap: 10px;
-  min-height: 100%; aspect-ratio: 3 / 2; padding: clamp(18px, 1.8vw, 26px);
+  height: 100%; min-height: clamp(150px, 12vw, 216px); padding: clamp(18px, 1.8vw, 26px);
   background: var(--surface); text-decoration: none;
   transition: background-color 200ms ease;
 }
-.tile__name { font-size: var(--step-head); font-weight: 500; letter-spacing: -0.035em; line-height: 1; overflow-wrap: anywhere; }
+.tile__name { font-size: clamp(1.75rem, 1rem + 1.4vw, 2.75rem); font-weight: 500; letter-spacing: -0.035em; line-height: 1; overflow-wrap: anywhere; }
 .tile__line { color: var(--muted); font-size: var(--step-small); }
 @media (hover: hover) and (pointer: fine) {
   .tile:hover { background: var(--surface-2); }
@@ -429,6 +433,7 @@ mark { background: none; color: inherit; }
 .audit__lead { margin-top: 28px; max-width: 50ch; font-size: var(--step-lead); line-height: 1.4; text-wrap: pretty; }
 .audit__offer { grid-column: 8 / -1; justify-self: end; display: grid; justify-items: start; }
 .audit__figure .figure__per { font-weight: 500; }
+.audit__note { margin-top: 12px; max-width: 34ch; font-size: var(--step-small); line-height: 1.45; text-wrap: pretty; }
 .audit__act { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 24px; margin-top: 32px; }
 .audit__act a:not(.button), .soon__act a:not(.button) { font-size: var(--step-small); font-weight: 600; text-decoration-thickness: 2px; }
 .audit .button { background: var(--accent-ink); color: var(--accent); }
@@ -518,6 +523,23 @@ mark { background: none; color: inherit; }
 @media (hover: hover) and (pointer: fine) {
   .footer__col a:hover, .footer__last a:hover { color: var(--accent); }
 }
+.footer__legal { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+
+/* ---------------------------------------------------------------- terms, privacy and refunds */
+
+.legal { max-width: calc(68ch + 2 * var(--margin)); padding: clamp(56px, 9vw, 120px) var(--margin) 0; overflow-wrap: break-word; }
+.legal__lead { margin-top: 28px; color: var(--muted); font-size: var(--step-lead); line-height: 1.4; text-wrap: pretty; }
+.legal h2 { margin: 56px 0 14px; font-size: var(--step-lead); font-weight: 600; letter-spacing: -0.015em; line-height: 1.25; }
+.legal p, .legal li { text-wrap: pretty; }
+.legal section > * + * { margin-top: 14px; }
+.legal ul { display: grid; gap: 10px; padding-left: 1.25em; }
+.legal li::marker { color: var(--accent); }
+.legal a { text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.legal__date { margin-top: 64px; color: var(--muted); font-size: var(--step-small); }
+.footer--legal { margin-top: 96px; padding-top: 8px; }
+@media (hover: hover) and (pointer: fine) {
+  .legal a:hover { color: var(--accent); }
+}
 
 /* ---------------------------------------------------------------- motion */
 
@@ -572,7 +594,7 @@ mark { background: none; color: inherit; }
   .dock__tab { padding: 18px 20px 18px 44px; }
   .dock__tab::before { left: 20px; top: 26px; }
   .proof { grid-template-columns: minmax(0, 1fr); }
-  .proof__head { min-height: 240px; }
+  .proof__head { gap: 24px; }
   .price { display: block; }
   .price__words { margin-top: 48px; }
   .audit { grid-template-columns: minmax(0, 1fr); row-gap: 56px; }
@@ -620,7 +642,8 @@ mark { background: none; color: inherit; }
   .dock__pane[hidden], .js .dock__pane[data-off] { display: none; }
   .proof__tiles { gap: 6px; }
   .proof { gap: 6px; }
-  .tile { justify-content: flex-start; aspect-ratio: auto; min-height: 132px; }
+  .proof__tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tile { justify-content: flex-start; min-height: 132px; }
   .tile__name { font-size: 1.75rem; }
   .audit { padding-top: calc(72px * 0.577 + 56px); }
   .audit__ground { --cut: 72px; }

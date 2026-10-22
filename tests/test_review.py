@@ -720,6 +720,27 @@ class AiReviewFile(AiCase):
         self.assertIn("CORS open to any website", done)
         self.assertIn(f'<span class="rv rv-fixed">{report.T["en"]["status"]["fixed"]}</span>', done)
 
+    def test_ai_review_says_fixed_since_the_previous_report(self):
+        """In an AI review nobody followed the fix: what was fixed is what a new scan no longer finds. Every format says
+        "since the previous report"; a review by a person keeps "during the audit"."""
+        with open(self.ai({"APP003": ("fixed", "Origin list set to the shop domain.")}), encoding="utf-8") as fh:
+            doc = json.load(fh)
+        write(os.path.join(self.root, "api.js"), 'res.setHeader("Access-Control-Allow-Origin", "https://shop.example");\n')
+        for kind, phrase, other in (("ai", "since the previous report", "during the audit"),
+                                    ("person", "during the audit", "since the previous report")):
+            path = self.save_review(dict(doc, review_kind=kind))
+            for fmt in ("text", "markdown", "html"):
+                with self.subTest(kind=kind, format=fmt):
+                    code, out, err = run([self.root, "--offline", "--lang", "en", "--format", fmt, "--review", path, "--no-color"])
+                    self.assertIn(code, (0, 1), err)
+                    self.assertIn(f"1 fixed {phrase}", out)
+                    self.assertNotIn(other, out)
+        code, out, _ = run([self.root, "--offline", "--lang", "pt", "--review", self.save_review(dict(doc, review_kind="ai")),
+                            "--no-color"])
+        self.assertIn("1 corrigido desde o relatório anterior", out)
+        self.assertIn("Corrigidos desde o relatório anterior, já fora desta varredura (1):", out)
+        self.assertNotIn("durante a auditoria", out)
+
     def hidden(self, *, ignore=None, line=None, pad=0):
         """Revisão por IA que marca como corrigido o CORS aberto do api.js, que continua no código mas some da
         varredura: por uma linha do .stingwardignore, por um comentário stingward:ignore ou por tamanho."""
@@ -810,24 +831,24 @@ class AiReviewHtml(AiCase):
         notes = self.path("notes.md")
         write(notes, "Short summary.\n")
         out = self.render(self.ai({"SEC001": ("false_positive", "Test value.")}), "--notes", notes)
-        self.assertIn("<dt>AI review</dt>", self.section(out, "cover"))
+        self.assertIn("<dt>Automatic review</dt>", self.section(out, "cover"))
         scope = self.section(out, "scope")
-        self.assertIn("an AI read the code of each finding", scope)
+        self.assertIn("the automatic review read the code of each finding", scope)
         self.assertIn("We checked the code and configuration", scope)
         summary = self.section(out, "summary")
-        self.assertIn("After the AI review", summary)
+        self.assertIn("After the automatic review", summary)
         self.assertIn('<h3 class="analyst-h">Summary</h3>', summary)
-        for human in ("by hand", "checked by a person", "Human review", "Analyst summary"):
+        for human in ("by hand", "checked by a person", "Human review", "Analyst summary", "AI review", "an AI", "AI model"):
             self.assertNotIn(human, self.sections(out), human)
 
     def test_portuguese(self):
         notes = self.path("notes.md")
         write(notes, "Resumo curto.\n")
         out = self.render(self.ai({"SEC001": ("false_positive", "Valor de teste.")}), "--notes", notes, lang="pt")
-        for want in ("Revisão por IA", '<h3 class="analyst-h">Resumo</h3>', "uma IA leu o código de cada achado",
+        for want in ("Revisão automática", '<h3 class="analyst-h">Resumo</h3>', "a revisão automática leu o código de cada achado",
                      "Conferimos o código e a configuração"):
             self.assertIn(want, out)
-        for human in ("à mão", "conferida por uma pessoa", "Revisão humana", "Parecer do analista"):
+        for human in ("à mão", "conferida por uma pessoa", "Revisão humana", "Parecer do analista", "por IA", "uma IA", "modelo de IA"):
             self.assertNotIn(human, self.sections(out), human)
 
     def test_clean_project_with_an_ai_review(self):
@@ -836,15 +857,15 @@ class AiReviewHtml(AiCase):
         path = self.save_review({"stingward_review": 1, "review_kind": "ai", "findings": []})
         code, out, err = run([root, "--offline", "--format", "html", "--lang", "en", "--review", path])
         self.assertEqual(code, 0, err)
-        self.assertIn("<dt>AI review</dt>", self.section(out, "cover"))
+        self.assertIn("<dt>Automatic review</dt>", self.section(out, "cover"))
         self.assertNotIn("checked by a person", self.section(out, "scope"))
 
     def test_privacy_says_what_went_to_the_ai(self):
         scope = self.section(self.render(self.ai({})), "scope")
-        self.assertIn("For the AI review, the code excerpt of each finding, with secrets masked, was sent to the AI model.", scope)
+        self.assertIn("For the automatic review, the code excerpt of each finding, with secrets masked, was sent to the review service.", scope)
         self.assertNotIn("The code did not.", scope)
         scope = self.section(self.render(self.ai({}), lang="pt"), "scope")
-        self.assertIn("Para a revisão por IA, o trecho de cada achado, com os segredos mascarados, foi enviado ao modelo de IA.", scope)
+        self.assertIn("Para a revisão automática, o trecho de cada achado, com os segredos mascarados, foi enviado ao serviço de revisão.", scope)
         self.assertNotIn("O código não saiu.", scope)
 
     def test_person_review_keeps_its_words(self):
@@ -862,20 +883,20 @@ class AiReviewOtherFormats(AiCase):
 
     def test_text_says_reviewed_by_ai(self):
         code, out, _ = run([self.root, "--offline", "--no-color", "--review", self.ai({}), "--notes", self.notes()])
-        self.assertIn("Reviewed by AI: ", out)
+        self.assertIn("Reviewed automatically: ", out)
         self.assertIn("Summary:\n  First.\n", out)
         self.assertNotIn("Reviewed by a person", out)
         self.assertNotIn("Analyst summary", out)
 
     def test_markdown_says_ai(self):
         code, out, _ = run([self.root, "--offline", "--format", "markdown", "--review", self.ai({}), "--notes", self.notes()])
-        self.assertIn("**Reviewed by AI:**", out)
+        self.assertIn("**Reviewed automatically:**", out)
         self.assertIn("**Summary**", out)
         self.assertNotIn("Analyst summary", out)
 
     def test_portuguese_text(self):
         code, out, _ = run([self.root, "--offline", "--no-color", "--lang", "pt", "--review", self.ai({}), "--notes", self.notes()])
-        self.assertIn("Revisado por IA: ", out)
+        self.assertIn("Revisado automaticamente: ", out)
         self.assertIn("Resumo:\n  First.\n", out)
         self.assertNotIn("Parecer do analista", out)
 

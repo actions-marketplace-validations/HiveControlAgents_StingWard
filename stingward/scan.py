@@ -27,8 +27,9 @@ _TESTISH = TESTISH
 # Severidade máxima de cada regra em código de teste e exemplo, por modo. Numa skill, payload em tests/ costuma ser
 # exemplo, mas o autor escolhe o nome da pasta: baixa só até médio. Falha de código (injeção, XSS) em teste de skill
 # não roda na máquina de quem instala, então vai a baixo.
+# O PHP de um Dockerfile de exemplo ou de teste não é o que vai para produção.
 _CODE_RULES = ("COD", "APP009", "APP012", "APP013", "APP014")
-_TEST_DOWNGRADE = {"project": {"low": ("APP", "SKL001", "COD")},
+_TEST_DOWNGRADE = {"project": {"low": ("APP", "SKL001", "COD", "DEP005")},
                    "skill": {"medium": ("SKL002", "SKL004", "SKL005", "SKL007", "SKL008"), "low": _CODE_RULES},
                    "agents": {}}
 
@@ -134,7 +135,9 @@ def _ignored(f, rules):
                for r, g in rules)
 
 
-def run(root: str, mode: str = "project", offline: bool = False, only=None, files=None):
+def run(root: str, mode: str = "project", offline: bool = False, only=None, files=None, honor_ignores: bool = True):
+    """honor_ignores=False (--no-ignore) audita o projeto de outra pessoa: o .stingwardignore e os comentários
+    stingward:ignore dele não escondem achados, porque quem escreveu o código não decide o que o auditor vê."""
     root = os.path.abspath(root)
     too_big, truncated = [], False
     if files is None:
@@ -142,7 +145,8 @@ def run(root: str, mode: str = "project", offline: bool = False, only=None, file
         files = list_files(root, max_files=MAX_FILES + 1, mode=mode, too_big=too_big)
         truncated = len(files) > MAX_FILES
         files = files[:MAX_FILES]
-    ctx = Context(root=root, files=files, offline=offline, mode=mode, too_big=too_big, truncated=truncated)
+    ctx = Context(root=root, files=files, offline=offline, mode=mode, too_big=too_big, truncated=truncated,
+                  honor_ignores=honor_ignores)
     ctx.git_tracked = git_tracked(root) if mode != "agents" else None
     findings = []
     for name, fn in CHECKS.items():
@@ -156,7 +160,7 @@ def run(root: str, mode: str = "project", offline: bool = False, only=None, file
         for floor, prefixes in _TEST_DOWNGRADE[mode].items():
             if f.rule.startswith(prefixes) and SEV_RANK[f.severity] > SEV_RANK[floor]:
                 f.severity = floor
-    rules = load_ignore(root) if mode == "project" else []
+    rules = load_ignore(root) if mode == "project" and honor_ignores else []
     uniq, seen = [], set()
     # O mesmo token no config do MCP vira AGT004, que explica melhor; os outros segredos do arquivo continuam.
     agt004 = {(f.file, f.line) for f in findings if f.rule == "AGT004"}
