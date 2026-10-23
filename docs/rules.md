@@ -20,6 +20,7 @@ Standards: [CWE](https://cwe.mitre.org), [OWASP Top 10 for LLM Applications 2026
 | [DEP003](#dep003) | Manifest without a lockfile | 🔵 |
 | [DEP004](#dep004) | Version range allows vulnerable versions | 🔴 |
 | [DEP005](#dep005) | PHP version with known vulnerabilities | 🔴 |
+| [DEP006](#dep006) | Node.js version with known vulnerabilities | 🔴 |
 | [SEC001](#sec001) | Secret in code | 🔴 |
 | [SEC002](#sec002) | `.env` committed to git | 🟠 |
 | [SEC003](#sec003) | `.env` missing from `.gitignore` | 🟡 |
@@ -38,6 +39,8 @@ Standards: [CWE](https://cwe.mitre.org), [OWASP Top 10 for LLM Applications 2026
 | [APP012](#app012) | Loading the model can run code | 🟠 |
 | [APP013](#app013) | Agent can run whatever the model writes | 🟠 |
 | [APP014](#app014) | Tool argument written by the model reaches a shell, code, SQL, a path or a URL | 🔴 |
+| [APP015](#app015) | Function with the `service_role` key trusts the visitor | 🟠 |
+| [APP016](#app016) | Database function that runs any SQL | 🔴 |
 | [COD001](#cod001) | SQL query built from outside input | 🟠 |
 | [COD002](#cod002) | Shell command built from outside input | 🔴 |
 | [COD003](#cod003) | Code built from outside input is executed | 🔴 |
@@ -107,6 +110,14 @@ Without a lockfile, a range such as `Pillow>=10` or `"axios": "^1.6.0"` is all t
 Reads the PHP version the project runs on and looks it up in OSV.dev, where PHP's own advisories are listed: the `php` image (also `library/php`, a known Docker Hub mirror and `bitnami/php-fpm`) on a `FROM` line of a `Dockerfile` or `Containerfile`, with the `ARG` values declared before it filled in, or on an `image:` line of `docker-compose.yml` or `compose.yaml`; `.php-version`; `php` in `.tool-versions` (asdf); and `php` in the `[tools]` table of `mise.toml`. Tags without a version (`php:latest`, `php:8-cli`), release candidates and version constraints such as `"php": "^8.2"` in `composer.json` are left out. An exact version such as `php:8.3.30-apache` is reported like DEP001, with the full severity. A tag that follows a branch, such as `php:8.3-apache` or `8.3` in `.php-version`, runs the newest 8.3 of the day the image was built or PHP was updated, so it lists what the branch's releases fixed in the last 90 days, one level lower; an issue that no release of the branch fixes, as in a branch that is no longer supported, is reported with the full severity. In tests and examples it is low.
 
 **Fix:** use the version shown, for example change `php:8.3.30-apache` to `php:8.3.36-apache`, rebuild the image and deploy again. For a tag that follows a branch, rebuild with `docker build --pull --no-cache` or pin the version. Without Docker, update PHP where the app runs and restart PHP-FPM or Apache.
+**Standards:** `CWE-1395`
+
+<a id="dep006"></a>
+### DEP006 · Node.js version with known vulnerabilities
+
+Reads the Node.js version the app runs on and looks it up in OSV.dev, where Node.js's own advisories are listed, the same way as DEP005: the `node` image (also `library/node`, a known Docker Hub mirror and `bitnami/node`) on an `image:` line of `docker-compose.yml` or `compose.yaml`, or on the `FROM` line of the stage that runs in a `Dockerfile` or `Containerfile`. That is the last stage, or the earlier stage it starts from (`FROM base`); a stage that only builds the site, as in `FROM node:20 AS build` followed by `FROM nginx`, leaves no Node.js in the image and is left out. A major is a branch (`node:24-alpine`), and an LTS name stands for its major (`node:iron` is 20). When the project runs a server on Node.js (a `package.json` that depends on Express, Fastify, Koa, Hono, NestJS, Next.js, Nuxt, Remix, Socket.IO and similar, or whose `start` script runs `node`), the version files count too: `.nvmrc` and `.node-version` (`v24.10.0`, `24`, `lts/iron`), `nodejs` in `.tool-versions`, `node` in the `[tools]` table of `mise.toml`, and the `nodejs-20` module in the `modules` of a Replit `.replit` file. Without a server, those files usually only say which Node.js builds a static site. Tags that move between branches (`node:lts`, `node:current`, `node:latest`), release candidates, `engines` in `package.json` and `setup-node` in CI are left out. Exact versions and branches are reported as in DEP005. In tests and examples it is low.
+
+**Fix:** use the version shown, for example change `node:24.10.0-alpine` to `node:24.22.1-alpine`, rebuild the image and deploy again. For a branch with no fix, such as Node.js 20 after its support ended, move to the branch shown (`node:22-alpine`, or `nodejs-22` in the `modules` of `.replit`), test the app and deploy again. On Replit, deploy again and check `node --version`.
 **Standards:** `CWE-1395`
 
 ## Secrets
@@ -212,7 +223,7 @@ Firestore or Storage rules with `allow read, write: if true` (or the test-mode d
 <a id="app009"></a>
 ### APP009 · Model output reaches code, a shell, SQL or HTML
 
-The answer of an LLM call (OpenAI, Anthropic, Gemini, LangChain, the AI SDK...) reaches `eval`/`exec`, a shell command, a template, a SQL query, or `innerHTML`, `dangerouslySetInnerHTML`, `v-html`, `unsafe_allow_html`. A prompt injection in anything the model read turns into code on your server or scripts in your users' browsers. Critical when the answer is executed, high for SQL, medium for HTML. `JSON.parse`, `json.loads` and DOMPurify break the chain. The arguments the model writes for a tool are covered by [APP014](#app014).
+The answer of an LLM call (OpenAI, Anthropic, Gemini, LangChain, the AI SDK...) reaches `eval`/`exec`, a shell command, a template, a SQL query (also through `supabase.rpc('exec_sql', ...)`), or `innerHTML`, `dangerouslySetInnerHTML`, `v-html`, `unsafe_allow_html`. A prompt injection in anything the model read turns into code on your server or scripts in your users' browsers. Critical when the answer is executed, high for SQL, medium for HTML. `JSON.parse`, `json.loads` and DOMPurify break the chain. The arguments the model writes for a tool are covered by [APP014](#app014).
 
 **Fix:** treat model output like user input: ask for JSON and validate it, map it to a fixed list of actions, pass shell arguments as a list, run SQL with a read-only user, and clean HTML with DOMPurify.
 **Standards:** `CWE-1426` · `LLM10:2026`
@@ -228,7 +239,7 @@ A request value written in the middle of the instructions: `{"role": "system", "
 <a id="app011"></a>
 ### APP011 · AI endpoint with no login and no rate limit
 
-A server route that calls a model (Next.js `app/api/**/route.ts`, a server action, an Express or Hono handler, a FastAPI or Flask route) with no sign of login and no rate limit in the file, in `middleware.ts`, in a global `app.use(...)` or in router dependencies. Anyone can call it in a loop on your account. Not reported in skills, tests and examples.
+A server route that calls a model (Next.js `app/api/**/route.ts`, a server action, an Express or Hono handler, a Supabase Edge Function, a FastAPI or Flask route), with an SDK or with `fetch` to the provider's API (OpenAI, Anthropic, Gemini, the Lovable AI Gateway, OpenRouter...), with no sign of login and no rate limit in the file, in `middleware.ts`, in a global `app.use(...)` or in router dependencies. Anyone can call it in a loop on your account. Not reported in skills, tests and examples.
 
 **Fix:** require a signed-in user, rate limit per user or IP (`@upstash/ratelimit`, `express-rate-limit`, `slowapi`), set `max_tokens`, and add a spending limit in the provider's dashboard.
 **Standards:** `CWE-306` · `CWE-770` · `LLM06:2026`
@@ -262,6 +273,22 @@ The CWE and the OWASP Top 10 for Agentic Applications entry depend on the sink: 
 
 **Fix:** treat every tool argument as untrusted input: run programs with an argument list and no shell, pass SQL values as parameters, keep paths inside one folder (resolve them and check the prefix), allow only the hosts the tool needs, and type arguments as narrowly as you can (numbers, enums, patterns). If the tool must run commands, ask the user to confirm each one.
 **Standards:** `LLM03:2026`
+
+<a id="app015"></a>
+### APP015 · Function with the `service_role` key trusts the visitor
+
+A Supabase Edge Function (`supabase/functions/*/index.ts`, the shape Lovable builds) or another server route creates a client with the `service_role` key, which skips RLS, and lets a value from the request pick the record: a filter such as `.eq('user_id', userId)`, an `update`, `delete`, `upsert` or `rpc`, a Storage path, or an `auth.admin` call such as `deleteUser(body.userId)`. Nothing in the file checks who is calling, so anyone changes the id and reads, changes or deletes someone else's data. `verify_jwt = true` does not help: the anon key in the site is already a valid token. Not reported when the file reads the user from the token (`auth.getUser`, `getClaims`, `getServerSession`, `auth()`...), checks a webhook signature (`constructEvent`, `stripe-signature`, `svix`...) or a server secret (`CRON_SECRET`, `x-api-key`), when the client uses the anon key and the caller's `Authorization` header, for inserts and for queries with fixed values. Not reported in skills.
+
+**Fix:** read the user from the token first (`const { data: { user } } = await supabase.auth.getUser(token)`, with the token from the `Authorization` header), reject the request when there is none and use `user.id` instead of the id the request sent. Or create the client with the anon key and the `Authorization` header, so RLS applies.
+**Standards:** `CWE-639` · `CWE-862`
+
+<a id="app016"></a>
+### APP016 · Database function that runs any SQL
+
+A migration creates a `security definer` function in the `public` schema that runs SQL built from one of its text parameters: `execute query`, `execute 'select ... (' || query || ')'` or `execute format('... %s', p_where)`. It runs with the owner's rights and skips RLS, and in Supabase anyone with the anon key calls it through `supabase.rpc()`, so the caller runs any SQL on the database. Critical. Not reported for `security invoker` functions, `format()` with only `%I` and `%L`, parameters that are not text, functions outside `public`, and functions whose `execute` is revoked from both `anon` and `authenticated`.
+
+**Fix:** drop the function. If you really need it, write one function per query that takes parameters, use `security invoker`, or run `revoke execute on function name(text) from public, anon, authenticated;`.
+**Standards:** `CWE-89` · `CWE-250`
 
 ## Code
 
