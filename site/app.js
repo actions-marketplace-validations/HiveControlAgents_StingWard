@@ -1,6 +1,30 @@
-// Stingward site: copy buttons, the two tab lists (the three real reports and where it runs), the entrances, the
-// demo recordings and the ad label in links. Without this file every report and every preview is on the page,
-// one after another.
+// Stingward site: the headline of the first screen, copy buttons, the menu on narrow screens, the two tab lists (the
+// three real reports and where it runs), the entrances, the demo recordings and the ad label in links. Without this
+// file every report and every preview is on the page, one after another, and the menu's links sit in a row under the
+// bar.
+
+// The headline of the first screen: one of the hooks in data-hooks, a different one on each visit. The page is built
+// with the first, so that one shows without this script; ?hook=N (from 1) shows hook N, for a video or an ad that
+// quotes it. The list only grows at the end, so a number keeps its hook.
+(() => {
+  const title = document.querySelector(".hero__title[data-hooks]");
+  const lines = title ? title.querySelectorAll(".line > span") : [];
+  let hooks = [];
+  try { hooks = JSON.parse(title.dataset.hooks); } catch (_) { return; }
+  if (!Array.isArray(hooks) || !hooks.length || lines.length !== 2) return;
+  const asked = Number(new URLSearchParams(location.search).get("hook"));
+  let index;
+  if (Number.isInteger(asked) && asked >= 1 && asked <= hooks.length) {
+    index = asked - 1;
+  } else {
+    let last = -1;
+    try { const saved = localStorage.getItem("sw-hook"); if (saved !== null) last = Number(saved); } catch (_) {}
+    index = Math.floor(Math.random() * hooks.length);
+    if (hooks.length > 1 && index === last) index = (index + 1) % hooks.length;
+    try { localStorage.setItem("sw-hook", String(index)); } catch (_) {}
+  }
+  hooks[index].forEach((text, i) => { lines[i].textContent = text; });
+})();
 
 (() => {
   document.querySelectorAll("[data-copy]").forEach((button) => {
@@ -15,6 +39,19 @@
       clearTimeout(button.timer);
       button.timer = setTimeout(() => { label.textContent = idle; button.classList.remove("is-done"); }, 1800);
     });
+  });
+})();
+
+// The menu below 1080px: the button opens the links under the bar; a link, the button again or Escape closes them.
+(() => {
+  const top = document.querySelector(".top");
+  const button = top && top.querySelector(".menu");
+  if (!button) return;
+  const set = (open) => { top.classList.toggle("is-open", open); button.setAttribute("aria-expanded", String(open)); };
+  button.addEventListener("click", () => set(button.getAttribute("aria-expanded") !== "true"));
+  top.querySelectorAll(".nav a").forEach((link) => link.addEventListener("click", () => set(false)));
+  addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && top.classList.contains("is-open")) { set(false); button.focus(); }
   });
 })();
 
